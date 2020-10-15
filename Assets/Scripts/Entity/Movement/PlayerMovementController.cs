@@ -1,48 +1,67 @@
-﻿using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 
-public class PlayerMovementController : MonoBehaviour
+namespace Entity.Movement
 {
-    public float verticalInputAcceleration = 1;
-    public float horizontalInputAcceleration = 20;
- 
-    public float maxSpeed = 10;
-    public float maxRotationSpeed = 100;
- 
-    public float velocityDrag = 1;
-    public float rotationDrag = 1;
- 
-    private Vector3 velocity;
-    private float zRotationVelocity;
- 
-    private void Update()
+    public class PlayerMovementController : MonoBehaviour
     {
-        // apply forward input
-        Vector3 acceleration = Input.GetAxis("Vertical") * verticalInputAcceleration * transform.up;
-        velocity += acceleration * Time.deltaTime;
+        public float verticalInputAcceleration = 1;
+        public float horizontalInputAcceleration = 20;
  
-        // apply turn input
-        float zTurnAcceleration = -1 * Input.GetAxis("Horizontal") * horizontalInputAcceleration;
-        zRotationVelocity += zTurnAcceleration * Time.deltaTime;
-    }
+        public float maxSpeed = 100;
+        public float maxRotationSpeed = 110;
+        public float rotationStopSpeed = 2;
  
-    private void FixedUpdate()
-    {
-        // apply velocity drag
-        velocity = velocity * (1 - Time.deltaTime * velocityDrag);
+        public float velocityDrag = 0.2f;
+        public float rotationDrag = 0.1f;
  
-        // clamp to maxSpeed
-        velocity = Vector3.ClampMagnitude(velocity, maxSpeed);
+        private Vector3 velocity;
+        private float zRotationVelocity;
+        private float rotationStopCutoff = 2;
  
-        // apply rotation drag
-        zRotationVelocity = zRotationVelocity * (1 - Time.deltaTime * rotationDrag);
+        private void Update()
+        {
+            // apply forward input
+            var acceleration = Input.GetAxis("Vertical") * verticalInputAcceleration * transform.up;
+            velocity += acceleration * Time.deltaTime;
  
-        // clamp to maxRotationSpeed
-        zRotationVelocity = Mathf.Clamp(zRotationVelocity, -maxRotationSpeed, maxRotationSpeed);
+            // apply turn input
+            var zTurnAcceleration = -1 * Input.GetAxis("Horizontal") * horizontalInputAcceleration;
+            zRotationVelocity += zTurnAcceleration * Time.deltaTime;
+        }
  
-        // update transform
-        transform.position += velocity * Time.deltaTime;
-        transform.Rotate(0, 0, zRotationVelocity * Time.deltaTime);
+        private void FixedUpdate()
+        {
+            // apply velocity drag
+            velocity *= (1 - Time.deltaTime * velocityDrag);
+ 
+            // clamp to maxSpeed
+            velocity = Vector3.ClampMagnitude(velocity, maxSpeed);
+
+            // only apply rotation if turn key is active
+            if (Input.GetAxisRaw("Horizontal") != 0)
+            {
+                // apply rotation drag
+                zRotationVelocity *= (1 - Time.deltaTime * rotationDrag);
+
+                // clamp to maxRotationSpeed
+                zRotationVelocity = Mathf.Clamp(zRotationVelocity, -maxRotationSpeed, maxRotationSpeed);
+            }
+            // slowly but steadily stop the ship from continuously spinning if no turn input is pressed
+            else
+            {
+                // still need to slow
+                if (zRotationVelocity != 0)
+                    zRotationVelocity = Mathf.Lerp(zRotationVelocity, 0, rotationStopSpeed * Time.deltaTime);
+            
+                // reached minimum cutoff - set at 0 - stop rotation
+                if (Mathf.Abs(zRotationVelocity) <= rotationStopCutoff)
+                    zRotationVelocity = 0;
+            }
+
+            // update transform
+            transform.position += velocity * Time.deltaTime;
+            transform.Rotate(0, 0, zRotationVelocity * Time.deltaTime);
+            //Debug.Log($"v:{velocity} zr:{zRotationVelocity}");
+        }
     }
 }
